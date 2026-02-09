@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify 
 import psycopg2
 from flask_bcrypt import Bcrypt
+import jwt 
+import datetime
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
@@ -105,6 +107,101 @@ create_users_table_if_not_exists()
 create_exams_table_if_not_exists()
 create_questions_table_if_not_exists()
 create_monitoring_logs_table_if_not_exists()
+# Secret Key
+SECRET_KEY = "this is my secret key this is my secret key!!"
+
+# JWT FUNCTIONS
+def create_jwt(user_id, role_id):
+    payload = {
+        "user_id": user_id,
+        "role_id":role_id,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=60)
+    }
+
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    return token
+def verify_jwt(token):
+    try:
+        data=jwt.decode(token,SECRET_KEY,algorithms=['HS256'])
+        return data
+    except:
+        return None
+
+# SIGNUP API
+@app.route("/sign_up", methods=["POST"])
+def sign_up():
+    data = request.json
+    username = data.get("username")
+    email = data.get("email")
+    password =data.get("password")
+
+
+    if not username or not email or not password:
+        return jsonify({"error": "All fields required"}), 400
+
+    # Hash password
+    hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
+    DEFAULT_ROLE_ID = 2 #STUDENT 
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    cursor.execute("""
+            INSERT INTO users (username, email, password_hash ,role_id,account_status)
+            VALUES (%s, %s, %s,%s,%s)
+            RETURNING user_id
+        """, (username, email, hashed_password, DEFAULT_ROLE_ID,"ACTIVE" ))
+    user_id = cursor.fetchone()[0]
+    connection.commit()
+    cursor.close()
+    connection.close()
+    token = create_jwt(user_id,DEFAULT_ROLE_ID)
+    return jsonify({
+            "message": "Signup successful",
+            "token": token
+    }), 201
+
+
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.json
+    email = data.get("email")
+    password = data.get("password")
+   
+
+    if not email or not password:
+        return jsonify({"error": "All fields required"}), 400
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT user_id, username, password_hash ,role_id
+        FROM users
+        WHERE email = %s
+    """, (email,))
+    user = cursor.fetchone()
+    cursor.close()
+    connection.close()
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    user_id, username, hashed_password ,role = user
+
+    # Verify password
+    if not bcrypt.check_password_hash(hashed_password, password):
+        return jsonify({"error": "Invalid password"}), 401
+
+    token = create_jwt(user_id,role)
+
+    return jsonify({
+        "message": "Login successful",
+        "token": token,
+        "user": {
+            "user_id": user_id,
+            "username": username,
+            "email": email,
+            "role":role
+        }
+    }), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
