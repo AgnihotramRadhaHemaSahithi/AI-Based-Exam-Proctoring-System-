@@ -221,6 +221,45 @@ def student_dashboard():
                  return jsonify ({'error':'forbidden  acccess denied'}),403
     else:
         return jsonify({'error': 'token missing '}), 401
+@app.route('/examiner_dashboard', methods=['GET'])
+def examiner_dashboard():
+    token = request.headers.get("Authorization")
+    if token :
+        decoded = verify_jwt(token)
+        if decoded is None:
+            return jsonify({'error': 'token invalid/expired'}), 401
+        else:
+             if decoded ['role_id']  == 3 :
+               return jsonify({
+                'message':'Role matched: access granted',
+                'user_id': decoded['user_id'],
+                'role_id': decoded['role_id']
+                }), 200
+
+             else:
+                 return jsonify ({'error':'forbidden  acccess denied'}),403
+    else:
+        return jsonify({'error': 'token missing '}), 401
+@app.route('/admin_dashboard', methods=['GET'])
+def admin_dashboard():
+    token = request.headers.get("Authorization")
+    if token :
+        decoded = verify_jwt(token)
+        if decoded is None:
+            return jsonify({'error': 'token invalid/expired'}), 401
+        else:
+             if decoded ['role_id']  == 1 :
+               return jsonify({
+                'message':'Role matched: access granted',
+                'user_id': decoded['user_id'],
+                'role_id': decoded['role_id']
+                }), 200
+
+             else:
+                 return jsonify ({'error':'forbidden  acccess denied'}),403
+    else:
+        return jsonify({'error': 'token missing '}), 401
+
 
 if __name__ == '__main__':
     app.run(debug=True)
