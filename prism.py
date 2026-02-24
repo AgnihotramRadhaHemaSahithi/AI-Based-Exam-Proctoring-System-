@@ -1,10 +1,10 @@
-from flask import Flask, request, jsonify 
+from flask import Flask, request, jsonify,render_template
 import psycopg2
 from flask_bcrypt import Bcrypt
 import jwt 
 import datetime
 
-app = Flask(__name__)
+app = Flask(__name__,template_folder='templates')
 bcrypt = Bcrypt(app)
 
 # =============== Database Configuration ====================== # 
@@ -107,6 +107,13 @@ create_users_table_if_not_exists()
 create_exams_table_if_not_exists()
 create_questions_table_if_not_exists()
 create_monitoring_logs_table_if_not_exists()
+@app.route('/')
+def index():
+    return render_template('login.html')
+
+@app.route('/signup')
+def signup():
+    return render_template('signup.html')
 # Secret Key
 SECRET_KEY = "this is my secret key this is my secret key!!"
 
@@ -128,8 +135,8 @@ def verify_jwt(token):
         return None
 
 # SIGNUP API
-@app.route("/sign_up", methods=["POST"])
-def sign_up():
+@app.route("/signup", methods=["POST"])
+def signup_user():
     data = request.json
     username = data.get("username")
     email = data.get("email")
